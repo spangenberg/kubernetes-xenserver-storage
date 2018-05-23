@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: xenserver-driver
+spec:
+  template:
+    metadata:
+      labels:
+        app: xenserver-driver
+    spec:
+      containers:
+        - image: spangenberg/xenserver-driver:0.1
+          name: xenserver-driver
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /kubelet-plugins
+              name: kubelet-plugins
+      volumes:
+        - hostPath:
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+          name: kubelet-plugins

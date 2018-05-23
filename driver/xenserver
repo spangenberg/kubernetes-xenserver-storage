@@ -1,0 +1,262 @@
+#!/bin/bash
+
+JQ="/usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/jq"
+LOG_FILE="/tmp/xenserver-driver.log"
+
+debug() {
+	echo -e $* >> $LOG_FILE 2>&1
+}
+
+err() {
+	echo -ne $* 1>&2
+}
+
+log() {
+	echo -ne $* >&1
+}
+
+in_array() {
+	local elements element=$1
+	shift
+	for elements; do
+		[[ $elements == $element ]] && return 0
+	done
+	return 1
+}
+
+not_in_array() {
+	if in_array $@; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+init() {
+	log "{\"status\": \"Success\", \"capabilities\": {\"attach\": false}}"
+	exit 0
+}
+
+domount() {
+	MOUNT_DIR="$1"
+	debug "MOUNT_DIR=$MOUNT_DIR"
+	JSON_OPTIONS="$2"
+	debug "JSON_OPTIONS=$JSON_OPTIONS"
+
+	FS_TYPE=$(echo "$JSON_OPTIONS" | $JQ -r '.["kubernetes.io/fsType"]')
+	if [[ -z "$FS_TYPE" ]]; then
+		FS_TYPE="ext4"
+	fi
+
+	VDI_NAME_LABEL=$(echo $JSON_OPTIONS | $JQ -r '.["kubernetes.io/pvOrVolumeName"]')
+	XENSERVER_PASSWORD=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/password"]')
+	XENSERVER_USERNAME=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/username"]')
+	XENSERVER_HOST=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/host"]')
+
+	MAC=$(cat /sys/class/net/eth0/address 2>>$LOG_FILE)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not get mac address\"}"
+		exit 1
+	fi
+
+	VM_ID=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vif-list currently-attached="true" MAC="$MAC" params="vm-uuid" --minimal)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not list vif\"}"
+		exit 1
+	fi
+	if [[ -z "$VM_ID" ]]; then
+		err "{\"status\": \"Success\", \"message\": \"Could not find VM with MAC $MAC\"}"
+		exit 1
+	fi
+
+	VDI_ID=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vdi-list is-a-snapshot="false" name-label="$VDI_NAME_LABEL" --minimal)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not list vdi\"}"
+		exit 1
+	fi
+	if [[ -z "$VDI_ID" ]]; then
+		err "{\"status\": \"Success\", \"message\": \"Could not find VDI\"}"
+		exit 1
+	fi
+
+	DEVICES=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-list currently-attached="true" params="device" vm-uuid="$VM_ID" --minimal)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not list vbd\"}"
+		exit 1
+	fi
+	if [[ -z "$DEVICES" ]]; then
+		err "{\"status\": \"Success\", \"message\": \"Could not find devices\"}"
+		exit 1
+	fi
+
+	OIFS="$IFS"; IFS=","; DEVS=($DEVICES); IFS="$OIFS"
+	for a in {b..z}; do
+		device="xvd$a"
+		if not_in_array	$device ${DEVS[@]}; then
+			DEVICE=$device
+			break
+		fi
+	done
+	if [ -z $DEVICE ]; then
+		for a in {a..z}; do
+			for b in {a..z}; do
+				device="xvd$a$b"
+				if not_in_array	$device ${DEVS[@]}; then
+					DEVICE=$device
+					break
+				fi
+			done
+			if [ -n $DEVICE ]; then
+				break
+			fi
+		done
+	fi
+	if [[ -z "$DEVICE" ]]; then
+		err "{\"status\": \"Success\", \"message\": \"Could not find device\"}"
+		exit 1
+	fi
+
+	VBD_ID=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-create vm-uuid="$VM_ID" vdi-uuid="$VDI_ID" device="$DEVICE" type="Disk" mode="RW")
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not create vbd\"}"
+		exit 1
+	fi
+
+	xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-plug uuid="$VBD_ID"
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not plug vbd\"}"
+		exit 1
+	fi
+
+	BLK_ID=$(blkid /dev/"$DEVICE" 2>>$LOG_FILE)
+	if [ -z "$BLK_ID" ]; then
+		debug "sh -c 'mkfs -t $FS_TYPE /dev/$DEVICE'"
+		mkfs -t "$FS_TYPE" /dev/"$DEVICE" >> $LOG_FILE 2>&1
+		if [ $? -ne 0 ]; then
+			err "{\"status\": \"Failure\", \"message\": \"Failed to create fs $FS_TYPE on device $DEVICE\"}"
+			exit 1
+		fi
+	fi
+
+	debug "sh -c 'mkdir -p $MOUNT_DIR'"
+	mkdir -p "$MOUNT_DIR" &>/dev/null
+
+	debug "sh -c 'cat {...} > $MOUNT_DIR-json'"
+	echo "$JSON_OPTIONS" > "$MOUNT_DIR"-json
+
+	debug "sh -c 'mount /dev/$DEVICE $MOUNT_DIR'"
+	mount /dev/"$DEVICE" "$MOUNT_DIR" >> $LOG_FILE 2>&1
+	if [ $? -ne 0 ]; then
+		debug "error during mount"
+		err "{\"status\": \"Failure\", \"message\": \"Could not mount $DEVICE at $MOUNT_DIR\"}"
+		exit 1
+	fi
+
+	debug "success mount"
+	log "{\"status\": \"Success\"}"
+	exit 0
+}
+
+dounmount() {
+	MOUNT_DIR="$1"
+	debug "MOUNT_DIR=$MOUNT_DIR"
+
+	JSON_OPTIONS=$(cat "$MOUNT_DIR"-json)
+
+	XENSERVER_PASSWORD=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/password"]')
+	XENSERVER_USERNAME=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/username"]')
+	XENSERVER_HOST=$(echo $JSON_OPTIONS | $JQ -r '.["spangenberg.io/xenserver/host"]')
+
+	MAC=$(cat /sys/class/net/eth0/address)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not get mac address\"}"
+		exit 1
+	fi
+
+	VM_ID=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vif-list currently-attached="true" params="vm-uuid" MAC="$MAC" --minimal)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not list vif\"}"
+		exit 1
+	fi
+	if [[ -z "$VM_ID" ]]; then
+		err "{\"status\": \"Success\", \"message\": \"Could not find vm\"}"
+		exit 1
+	fi
+
+	DEVICE=$(findmnt -n -o SOURCE --target "$MOUNT_DIR" 2>>$LOG_FILE | cut -d/ -f3)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not find mount of $MOUNT_DIR\"}"
+		exit 1
+	fi
+
+	VBD_ID=$(xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-list currently-attached="true" device="$DEVICE" vm-uuid="$VM_ID" --minimal)
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not list vbd\"}"
+		exit 1
+	fi
+	if [[ -z "$VBD_ID" ]]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not find vbd\"}"
+		exit 1
+	fi
+
+	umount "$MOUNT_DIR" >> $LOG_FILE 2>&1
+	if [ $? -ne 0 ]; then
+		debug "error during umount"
+		err "{\"status\": \"Failure\", \"message\": \"Could not mount $DEVICE at $MOUNT_DIR\"}"
+		exit 1
+	fi
+
+	xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-unplug uuid="$VBD_ID"
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not unplug vbd\"}"
+		exit 1
+	fi
+
+	xapi "$XENSERVER_HOST" "$XENSERVER_USERNAME" "$XENSERVER_PASSWORD" vbd-destroy uuid="$VBD_ID"
+	if [ $? -ne 0 ]; then
+		err "{\"status\": \"Failure\", \"message\": \"Could not destroy vbd\"}"
+		exit 1
+	fi
+
+	debug "sh -c 'rm -f $MOUNT_DIR-json'"
+	rm -f "$MOUNT_DIR"-json
+
+	debug "unmount success"
+	log "{\"status\": \"Success\"}"
+	exit 0
+}
+
+xapi() {
+	XENSERVER_HOST="$1"
+	XENSERVER_USERNAME="$2"
+	XENSERVER_PASSWORD="$3"
+	COMMAND="$4"
+
+	shift 4
+
+	debug "xe $COMMAND $@"
+
+	docker run --rm spangenberg/xapi:latest "$COMMAND" -s "$XENSERVER_HOST" -u "$XENSERVER_USERNAME" -pw "$XENSERVER_PASSWORD" "$@" 2>>$LOG_FILE
+}
+
+debug $*
+
+op=$1
+
+shift
+
+case "$op" in
+	init)
+		init $*
+		;;
+	mount)
+		domount $*
+		;;
+	unmount)
+		dounmount $*
+		;;
+	*)
+		err "{\"status\": \"Not supported\"}"
+esac
+
+exit 1

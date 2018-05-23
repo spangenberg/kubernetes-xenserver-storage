@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ClusterRole
+metadata:
+  name: xenserver-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "list", "patch", "update", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "update", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]

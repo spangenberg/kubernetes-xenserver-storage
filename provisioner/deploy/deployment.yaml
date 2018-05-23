@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xenserver-provisioner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: xenserver-provisioner
+    spec:
+      containers:
+        - env:
+            - name: XENSERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: host
+                  name: xenserver
+            - name: XENSERVER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: xenserver
+            - name: XENSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: xenserver
+          image: spangenberg/xenserver-provisioner:0.1
+          name: xenserver-provisioner
