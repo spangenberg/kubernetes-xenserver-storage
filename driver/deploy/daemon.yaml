@@ -9,7 +9,7 @@ spec:
         app: xenserver-driver
     spec:
       containers:
-        - image: spangenberg/xenserver-driver:0.1
+        - image: spangenberg/xenserver-driver:0.2
           name: xenserver-driver
           securityContext:
             privileged: true
