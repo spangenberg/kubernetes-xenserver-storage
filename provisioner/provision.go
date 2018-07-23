@@ -51,7 +51,7 @@ func (p *xenServerProvisioner) Provision(options controller.VolumeOptions) (*v1.
 func (p *xenServerProvisioner) provisionOnXenServer(options controller.VolumeOptions) error {
 	xapi, session, err := p.xapiLogin()
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not login at XenServer, error: %s", err.Error()))
+		return fmt.Errorf("Could not login at XenServer, error: %s", err.Error())
 	}
 	defer func() {
 		if err := p.xapiLogout(xapi, session); err != nil {
@@ -62,20 +62,20 @@ func (p *xenServerProvisioner) provisionOnXenServer(options controller.VolumeOpt
 	srNameLabel := options.Parameters[storageClassParameterSRName]
 	srs, err := xapi.SR.GetByNameLabel(session, srNameLabel)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not list SRs for name label %s, error: %s", srNameLabel, err.Error()))
+		return fmt.Errorf("Could not list SRs for name label %s, error: %s", srNameLabel, err.Error())
 	}
 
 	if len(srs) > 1 {
-		return errors.New(fmt.Sprintf("Too many SRs where found for name label %s", srNameLabel))
+		return fmt.Errorf("Too many SRs where found for name label %s", srNameLabel)
 	}
 
 	if len(srs) < 1 {
-		return errors.New(fmt.Sprintf("No SR was found for name label %s", srNameLabel))
+		return fmt.Errorf("No SR was found for name label %s", srNameLabel)
 	}
 
 	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceStorage]
 	if !exists {
-		return errors.New(fmt.Sprintf("Capacity was not specified for name label %s", options.PVName))
+		return fmt.Errorf("Capacity was not specified for name label %s", options.PVName)
 	}
 
 	_, err = xapi.VDI.Create(session, xenapi.VDIRecord{
@@ -86,7 +86,7 @@ func (p *xenServerProvisioner) provisionOnXenServer(options controller.VolumeOpt
 		VirtualSize:     int(capacity.Value()),
 	})
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not create VDI for name label %s, error: %s", options.PVName, err.Error()))
+		return fmt.Errorf("Could not create VDI for name label %s, error: %s", options.PVName, err.Error())
 	}
 
 	return nil

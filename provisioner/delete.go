@@ -32,17 +32,17 @@ func (p *xenServerProvisioner) deleteFromXenServer(nameLabel string) error {
 
 	vdis, err := xapi.VDI.GetByNameLabel(session, nameLabel)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not list VDIs for name label %s, error: %s", nameLabel, err.Error()))
+		return fmt.Errorf("Could not list VDIs for name label %s, error: %s", nameLabel, err.Error())
 	}
 
 	if len(vdis) > 1 {
-		return errors.New(fmt.Sprintf("Too many VDIs where found for name label %s", nameLabel))
+		return fmt.Errorf("Too many VDIs where found for name label %s", nameLabel)
 	}
 
 	if len(vdis) > 0 {
 		err := xapi.VDI.Destroy(session, vdis[0])
 		if err != nil {
-			return errors.New(fmt.Sprintf("Could not destroy VDI for name label %s, error: %s", nameLabel, err.Error()))
+			return fmt.Errorf("Could not destroy VDI for name label %s, error: %s", nameLabel, err.Error())
 		}
 
 		glog.Infof("VDI was destroyed for name label %s", nameLabel)
