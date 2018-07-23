@@ -7,9 +7,6 @@ if [ ! -d /kubelet-plugins/spangenberg.io~xenserver ]; then
   mkdir /kubelet-plugins/spangenberg.io~xenserver
 fi
 
-cp /usr/local/bin/jq /kubelet-plugins/spangenberg.io~xenserver/.tmp_jq
-mv -f /kubelet-plugins/spangenberg.io~xenserver/.tmp_jq /kubelet-plugins/spangenberg.io~xenserver/jq
-
 cp /usr/local/bin/xenserver /kubelet-plugins/spangenberg.io~xenserver/.tmp_xenserver
 mv -f /kubelet-plugins/spangenberg.io~xenserver/.tmp_xenserver /kubelet-plugins/spangenberg.io~xenserver/xenserver
 

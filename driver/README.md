@@ -22,8 +22,6 @@ the following commands on each node:
 
 ```console
 mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver && \
-wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -O /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/jq && \
-chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/jq && \
-wget https://raw.githubusercontent.com/spangenberg/kubernetes-xenserver-storage/v0.1.0/driver/xenserver -O /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/xenserver && \
+wget https://github.com/spangenberg/kubernetes-xenserver-storage/releases/download/v0.2.0/xenserver -O /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/xenserver && \
 chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/spangenberg.io~xenserver/xenserver
 ```
