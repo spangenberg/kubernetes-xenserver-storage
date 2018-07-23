@@ -16,5 +16,5 @@ push: container
 .PHONY: push
 
 clean:
-	rm -f xenserver-provisioner
+	rm -f bin/xenserver-provisioner
 .PHONY: clean
