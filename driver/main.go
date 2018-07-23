@@ -16,9 +16,7 @@ import (
 )
 
 const (
-	defaultMountFlags   = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-	defaultUnmountFlags = syscall.MNT_DETACH
-	debugLogFile        = "/tmp/xenserver-driver.log"
+	debugLogFile = "/tmp/xenserver-driver.log"
 )
 
 type jsonParameter struct {
@@ -105,11 +103,9 @@ func mount(mountDir, jsonOptions string) {
 		options.FSType = "ext4"
 	}
 
-	flags := defaultMountFlags
 	var mode xenapi.VbdMode
 	switch options.ReadWrite {
 	case "ro":
-		flags = flags | syscall.MS_RDONLY
 		mode = xenapi.VbdModeRO
 	case "rw":
 		mode = xenapi.VbdModeRW
@@ -220,7 +216,7 @@ func mount(mountDir, jsonOptions string) {
 	}
 
 	debug("syscall.Mount")
-	if err := syscall.Mount(devicePath, mountDir, options.FSType, uintptr(flags), ""); err != nil {
+	if err := syscall.Mount(devicePath, mountDir, options.FSType, 0, ""); err != nil {
 		failure(err)
 	}
 
@@ -268,7 +264,7 @@ func unmount(mountDir string) {
 	device := devicePathElements[2]
 
 	debug("syscall.Unmount")
-	if err := syscall.Unmount(mountDir, defaultUnmountFlags); err != nil {
+	if err := syscall.Unmount(mountDir, 0); err != nil {
 		failure(err)
 	}
 
