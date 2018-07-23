@@ -93,6 +93,8 @@ func failure(err error) {
 }
 
 func mount(mountDir, jsonOptions string) {
+	jsonOptionsFile := fmt.Sprintf("%s.json", mountDir)
+
 	byt := []byte(jsonOptions)
 	options := jsonParameter{}
 	if err := json.Unmarshal(byt, &options); err != nil {
@@ -208,7 +210,7 @@ func mount(mountDir, jsonOptions string) {
 	}
 
 	debug("ioutil.WriteFile")
-	if err := ioutil.WriteFile(fmt.Sprintf("%s-json", mountDir), byt, 0600); err != nil {
+	if err := ioutil.WriteFile(jsonOptionsFile, byt, 0600); err != nil {
 		failure(err)
 	}
 
@@ -226,7 +228,9 @@ func mount(mountDir, jsonOptions string) {
 }
 
 func unmount(mountDir string) {
-	byt, err := ioutil.ReadFile(fmt.Sprintf("%s-json", mountDir))
+	jsonOptionsFile := fmt.Sprintf("%s.json", mountDir)
+
+	byt, err := ioutil.ReadFile(jsonOptionsFile)
 	if err != nil {
 		failure(err)
 	}
@@ -283,7 +287,7 @@ func unmount(mountDir string) {
 	}
 
 	debug("os.Remove")
-	if err := os.Remove(fmt.Sprintf("%s-json", mountDir)); err != nil {
+	if err := os.Remove(jsonOptionsFile); err != nil {
 		failure(err)
 	}
 
