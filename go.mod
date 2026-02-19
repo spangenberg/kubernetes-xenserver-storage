@@ -1,11 +1,13 @@
 module github.com/spangenberg/kubernetes-xenserver-storage
 
+go 1.25.7
+
 require (
 	github.com/PuerkitoBio/purell v1.0.0
 	github.com/PuerkitoBio/urlesc v0.0.0-20160726150825-5bd2802263f2
 	github.com/amfranz/go-xmlrpc-client v0.0.0-20160105190105-06faa2bd7dd6
-	github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2
-	github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633
+	github.com/davecgh/go-spew v1.1.1
+	github.com/emicklei/go-restful v2.16.0+incompatible
 	github.com/emicklei/go-restful-swagger12 v0.0.0-20170208215640-dcef7f557305
 	github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680
 	github.com/go-openapi/analysis v0.0.0-20160815203709-b44dc874b601
@@ -14,10 +16,10 @@ require (
 	github.com/go-openapi/loads v0.0.0-20160704185440-18441dfa706d
 	github.com/go-openapi/spec v0.0.0-20160808142527-6aced65f8501
 	github.com/go-openapi/swag v0.0.0-20160704191624-1d0bd113de87
-	github.com/gogo/protobuf v0.0.0-20170330071051-c0656edd0d9e
-	github.com/golang/glog v0.0.0-20141105023935-44145f04b68c
+	github.com/gogo/protobuf v1.3.2
+	github.com/golang/glog v1.2.4
 	github.com/golang/groupcache v0.0.0-20160516000752-02826c3e7903
-	github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367
+	github.com/google/gofuzz v1.0.0
 	github.com/hashicorp/golang-lru v0.0.0-20160207214719-a0d98a5f2880
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
 	github.com/imdario/mergo v0.0.0-20141206190957-6633656539c1
@@ -28,15 +30,21 @@ require (
 	github.com/ringods/go-xen-api-client v0.0.0-20180124073638-1244813daa53
 	github.com/spf13/pflag v0.0.0-20161024131444-5ccb023bc27d
 	github.com/ugorji/go v0.0.0-20170107133203-ded73eae5db7
-	golang.org/x/crypto v0.0.0-20161006174701-d172538b2cfc
-	golang.org/x/net v0.0.0-20170114055629-f2499483f923
-	golang.org/x/sys v0.0.0-20160916181909-8f0908ab3b24
-	golang.org/x/text v0.0.0-20160726164857-2910a502d2bf
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974
+	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
+	golang.org/x/text v0.3.3
 	gopkg.in/inf.v0 v0.9.0
-	gopkg.in/yaml.v2 v2.0.0-20150924142314-53feefa2559f
+	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.0.0-20170628000539-e24ed681f561
 	k8s.io/apimachinery v0.0.0-20170627200700-728b986edb9b
 	k8s.io/client-go v0.0.0-20170628000709-42a124578af9
 	k8s.io/kubernetes v0.0.0-20170626124940-df7f4b3526a5
 	k8s.io/utils v0.0.0-20180208044234-258e2a2fa645
+)
+
+require (
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 )
